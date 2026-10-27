@@ -39,6 +39,7 @@
 #endif
 
 #ifdef __linux__
+#include <linux/futex.h>
 #include <sys/syscall.h>
 #else
 static const auto initialThreadId = std::this_thread::get_id();
@@ -558,12 +559,47 @@ bool GuestThreadIsLive(const PthreadPrivate* thread) {
     return LockLiveGuestThread(thread).owns_lock();
 }
 
+static void WaitParkWord(std::atomic<std::uint32_t>& word, std::uint32_t observed) {
+#ifdef __linux__
+    ::syscall(SYS_futex, reinterpret_cast<std::uint32_t*>(&word), FUTEX_WAIT_PRIVATE, observed, nullptr, nullptr, 0);
+#else
+    word.wait(observed, std::memory_order_acquire);
+#endif
+}
+
+static void WakeParkWord(std::atomic<std::uint32_t>& word) {
+#ifdef __linux__
+    ::syscall(SYS_futex, reinterpret_cast<std::uint32_t*>(&word), FUTEX_WAKE_PRIVATE, INT32_MAX, nullptr, nullptr, 0);
+#else
+    word.notify_all();
+#endif
+}
+
+static void ReleaseParkedThread(PthreadPrivate* thread) {
+    thread->suspended.store(false, std::memory_order_seq_cst);
+    thread->parkEpoch.fetch_add(1, std::memory_order_acq_rel);
+    WakeParkWord(thread->parkEpoch);
+    ReleaseGuestThreadPark(thread);
+}
+
+extern "C" void ParkCurrentGuestThread_nid_no_patch() {
+    PthreadPrivate* self = CurrentGuestState().current;
+    if (self == nullptr) return;
+    for (;;) {
+        const std::uint32_t epoch = self->parkEpoch.load(std::memory_order_acquire);
+        if (!self->suspended.load(std::memory_order_acquire)) break;
+        self->parked.store(1, std::memory_order_release);
+        WakeParkWord(self->parked);
+        WaitParkWord(self->parkEpoch, epoch);
+    }
+    self->parked.store(0, std::memory_order_release);
+}
+
 extern "C" int ResumeGuestThread_nid_no_patch(PthreadPrivate* thread) {
     constexpr int GuestEsrch = 3;
     const auto live = LockLiveGuestThread(thread);
     if (!live.owns_lock()) return GuestEsrch;
-    thread->suspended.store(false, std::memory_order_release);
-    thread->suspended.notify_all();
+    ReleaseParkedThread(thread);
     return 0;
 }
 
@@ -573,8 +609,7 @@ extern "C" void ResumeAllGuestThreads_nid_no_patch() {
     std::lock_guard lock(registry.lock);
     for (const auto& [id, thread] : registry.threads) {
         if (thread == self) continue;
-        thread->suspended.store(false, std::memory_order_release);
-        thread->suspended.notify_all();
+        ReleaseParkedThread(thread);
     }
 }
 
@@ -798,7 +833,8 @@ static void RunThread(std::unique_ptr<ThreadArgs> args) {
     const sigset_t signalMask = args->signalMask;
 #endif
     args.reset();
-    self->suspended.wait(true, std::memory_order_acquire);
+    self->started.store(true, std::memory_order_seq_cst);
+    ParkCurrentGuestThread_nid_no_patch();
 #ifndef _WIN32
     pthread_sigmask(SIG_SETMASK, &signalMask, nullptr);
 #endif
@@ -818,6 +854,32 @@ static void ReleaseThread(PthreadPrivate* thread) {
         throw std::system_error(GetLastError(), std::system_category(), "Closing guest thread handle");
 #endif
     delete thread;
+}
+
+extern "C" int SuspendGuestThread_nid_no_patch(PthreadPrivate* thread) {
+    constexpr int GuestEsrch = 3;
+    constexpr int GuestEdeadlk = 11;
+    constexpr std::uint64_t PollNanos = 1000000;
+    if (thread == CurrentGuestState().current) return GuestEdeadlk;
+    {
+        const auto live = LockLiveGuestThread(thread);
+        if (!live.owns_lock()) return GuestEsrch;
+        thread->suspended.store(true, std::memory_order_seq_cst);
+        if (thread->parked.load(std::memory_order_acquire) != 0) return 0;
+        if (!thread->_adopted) thread->references.fetch_add(1, std::memory_order_acq_rel);
+    }
+    const std::unique_ptr<PthreadPrivate, decltype(&ReleaseThread)> reference(thread, &ReleaseThread);
+    if (thread->started.load(std::memory_order_seq_cst)) {
+        try {
+            RequestGuestThreadPark(thread);
+        } catch (...) {
+            thread->suspended.store(false, std::memory_order_release);
+            throw;
+        }
+    }
+    while (thread->parked.load(std::memory_order_acquire) == 0 && thread->suspended.load(std::memory_order_acquire) && GuestThreadIsLive(thread))
+        TimedWait::SleepNanos(PollNanos);
+    return 0;
 }
 
 static std::mutex joinedLock;

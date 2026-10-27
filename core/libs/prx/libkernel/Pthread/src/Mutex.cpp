@@ -121,6 +121,7 @@ int MutexOperations::Timedlock(PthreadMutex* mutex, const KernelTimespec* abstim
         }
 #else
         static_cast<void>(current);
+        const TimedWait::SuspendSafeWait safe;
         return native.try_lock_until(deadline);
 #endif
     }, sceTimedOut, false);
@@ -202,6 +203,7 @@ int APS5_VABI scePthreadMutexLock(PthreadMutex* mutex) {
         return TimedWait::ParkAcquire(current, [&] { return native.try_lock(); }, nullptr);
 #else
         static_cast<void>(current);
+        const TimedWait::SuspendSafeWait safe;
         native.lock();
         return true;
 #endif
