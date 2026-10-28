@@ -92,7 +92,10 @@ float SinhfExp(float x) {
 }
 
 float GuestTgammaf(float x) {
+    const int savedErrno = errno;
     const float result = static_cast<float>(std::tgamma(static_cast<double>(x)));
+    errno = std::isfinite(x) && x < 0.0f && std::trunc(x) == x ? EDOM : savedErrno;
+    if (std::isnan(result) && !std::isnan(x)) return std::bit_cast<float>(0xffc00000u);
     if (result != 0.0f || !std::isfinite(x) || x >= 0.0f || std::trunc(x) == x) return result;
     const double interval = std::floor(-static_cast<double>(x));
     const bool negative = std::fmod(interval, 2.0) == 0.0;

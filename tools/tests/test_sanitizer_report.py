@@ -63,6 +63,22 @@ class SanitizerReportTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("4 tests: 0 passed, 2 skipped, 2 failed.", stdout)
 
+    def test_a_test_listed_twice_is_rejected(self):
+        summary = self.write("", "summary.md")
+        for cases in ((case("fiber", "fail", "<failure/>"), case("fiber")),
+                      (case("fiber"), case("fiber", "fail", "<failure/>")),
+                      (case("fiber"), case("fiber"))):
+            with self.subTest(cases=cases):
+                code, stdout, stderr = self.run_main(self.write(suite(*cases)), "--summary", summary)
+                self.assertEqual(code, 2)
+                self.assertEqual(stdout, "")
+                self.assertIn("testcase fiber is listed more than once", stderr)
+        nested = ('<testsuites><testsuite name="a">' + case("fiber", "fail", "<failure/>")
+                  + '</testsuite><testsuite name="b">' + case("fiber") + "</testsuite></testsuites>")
+        code, _, _ = self.run_main(self.write(nested))
+        self.assertEqual(code, 2)
+        self.assertEqual(summary.read_text(encoding="utf-8"), "")
+
     def test_summary_counts_and_sorts_the_failed_tests(self):
         text, failing = sanitizer_report.summarize("ASan", {"b": "failed", "a": "failed", "c": "passed", "d": "skipped"})
         self.assertTrue(failing)

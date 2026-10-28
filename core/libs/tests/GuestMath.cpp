@@ -2017,10 +2017,20 @@ static void CheckLongDoubleFunctions() {
     Require(tgammaf_nid_postfix(5.0f) == 24.0f && std::abs(tgammaf_nid_postfix(0.5f) - 1.77245385f) < 1e-6f);
     Require(tgammaf_nid_postfix(1.0f) == 1.0f && tgammaf_nid_postfix(2.0f) == 1.0f && tgammaf_nid_postfix(3.0f) == 2.0f);
     Require(std::isinf(tgammaf_nid_postfix(0.0f)) && std::isnan(tgammaf_nid_postfix(-1.0f)));
+    for (const float pole : {-1.0f, -2.0f, -710.0f, -std::numeric_limits<float>::infinity()}) Require(std::bit_cast<std::uint32_t>(tgammaf_nid_postfix(pole)) == 0xffc00000u);
     const float negativeGammaUnderflow = tgammaf_nid_postfix(-4260.884765625f);
     const float positiveGammaUnderflow = tgammaf_nid_postfix(-4261.2f);
     Require(negativeGammaUnderflow == 0.0f && std::signbit(negativeGammaUnderflow));
     Require(positiveGammaUnderflow == 0.0f && !std::signbit(positiveGammaUnderflow));
+    for (const float x : {0.0f, -0.0f, -INFINITY, INFINITY, 40.0f, 1.0e5f, 3.0e38f, -4261.2f, 0.5f}) {
+        errno = 7;
+        static_cast<void>(tgammaf_nid_postfix(x));
+        Require(errno == 7);
+    }
+    for (const float x : {-1.0f, -2.0f, -1.0e5f, -3.0e38f}) {
+        errno = 7;
+        Require(std::isnan(tgammaf_nid_postfix(x)) && errno == EDOM);
+    }
     Require(hypotl_nid_postfix(3.0L, -4.0L) == 5.0L && hypotl_nid_postfix(nan, -infinity) == infinity);
 
     Require(hypot3f_nid_postfix(3.0f, -4.0f, 12.0f) == 13.0f && hypot3f_nid_postfix(0.0f, 3.0f, -4.0f) == 5.0f);

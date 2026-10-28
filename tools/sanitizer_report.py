@@ -25,6 +25,8 @@ def results(path):
         name = case.get("name")
         if not name:
             raise ValueError(f"{path}: testcase has no name")
+        if name in found:
+            raise ValueError(f"{path}: testcase {name} is listed more than once")
         skipped, status = case.find("skipped"), case.get("status")
         reason = (skipped.get("message") or "").strip() if skipped is not None else ""
         if status in SKIPPED_STATUSES or (skipped is not None and (CTEST_SKIP.fullmatch(reason) or status not in FAILED_STATUSES)):
