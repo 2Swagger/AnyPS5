@@ -32,7 +32,6 @@
 #endif
 #ifdef __linux__
 #include <link.h>
-#include <sched.h>
 #include <string_view>
 #include <utility>
 #endif
@@ -1223,6 +1222,7 @@ bool RequestGuestThreadPark(PthreadPrivate* thread) {
 #elif defined(__linux__)
     constexpr std::uint64_t RetryNanos = 1000000;
     constexpr unsigned YieldsPerSleep = 256;
+    constexpr std::uint64_t ResendNanos = 20000;
     InstallParkSignal();
     RefreshGuestRanges();
     for (unsigned attempts = 1;; ++attempts) {
@@ -1234,8 +1234,7 @@ bool RequestGuestThreadPark(PthreadPrivate* thread) {
             if (result == ESRCH) return false;
             if (result != 0) throw std::system_error(result, std::generic_category(), "pthread_suspend_np: cannot signal the target thread");
         }
-        if (attempts % YieldsPerSleep == 0) TimedWait::SleepNanos(RetryNanos);
-        else sched_yield();
+        TimedWait::SleepNanos(attempts % YieldsPerSleep == 0 ? RetryNanos : ResendNanos);
     }
 #else
     static_cast<void>(thread);
