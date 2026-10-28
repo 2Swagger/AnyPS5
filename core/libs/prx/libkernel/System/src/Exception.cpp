@@ -1067,11 +1067,11 @@ void CALLBACK ParkApc(ULONG_PTR) {
     ParkCurrentGuestThread_nid_no_patch();
 }
 
-bool InGuestCode(HANDLE native) {
+CodeKind FrozenCode(HANDLE native, DWORD64& image) {
     CONTEXT context{};
     context.ContextFlags = CONTEXT_CONTROL;
-    if (!GetThreadContext(native, &context) || RestoringContext(context.Rip)) return false;
-    return ClassifyImage(ImageBase(context.Rip)) == CodeKind::Guest;
+    if (!GetThreadContext(native, &context) || RestoringContext(context.Rip)) return CodeKind::Host;
+    return RunningCode(context.Rip, image);
 }
 
 }
@@ -1183,7 +1183,9 @@ void RequestGuestThreadPark(PthreadPrivate* thread) {
             ResumeThread(native);
             return;
         }
-        if (InGuestCode(native)) {
+        DWORD64 image = 0;
+        const auto running = FrozenCode(native, image);
+        if (running == CodeKind::Guest) {
             thread->parked.store(1, std::memory_order_release);
             thread->osParked.store(true, std::memory_order_seq_cst);
             if (!thread->suspended.load(std::memory_order_seq_cst) && thread->osParked.exchange(false, std::memory_order_seq_cst)) {
@@ -1194,6 +1196,10 @@ void RequestGuestThreadPark(PthreadPrivate* thread) {
         }
         if (!queued && thread->waitCount.load(std::memory_order_seq_cst) > 0) queued = QueueUserAPC(ParkApc, native, 0) != 0;
         ResumeThread(native);
+        if (running == CodeKind::Unknown) {
+            static_cast<void>(ClassifyImage(image));
+            continue;
+        }
         if (++attempts % YieldsPerSleep == 0) TimedWait::SleepNanos(RetryNanos);
         else SwitchToThread();
     }

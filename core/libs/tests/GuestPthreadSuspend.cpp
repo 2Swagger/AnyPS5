@@ -159,6 +159,36 @@ static void KeepsBlockedThreadAfterItsWaitEnds() {
     Require(scePthreadMutexDestroy(&locker.mutex) == SCE_OK, "scePthreadMutexDestroy failed");
 }
 
+struct Churn {
+    std::atomic<std::uint64_t> threads{0};
+    std::atomic<bool> stop{false};
+};
+
+static void* APS5_VABI Finish(void*) {
+    return FINISHED;
+}
+
+static void* APS5_VABI CreateAndJoin(void* opaque) {
+    auto* churn = static_cast<Churn*>(opaque);
+    while (!churn->stop.load()) {
+        Pthread child = nullptr;
+        Require(scePthreadCreate(&child, nullptr, Finish, nullptr, "churn-child") == SCE_OK, "scePthreadCreate failed in the churn");
+        Require(scePthreadJoin(child, nullptr) == SCE_OK, "scePthreadJoin failed in the churn");
+        churn->threads.fetch_add(1);
+    }
+    return FINISHED;
+}
+
+static void SuspendsWhileThreadsComeAndGo() {
+    Churn churn;
+    Pthread churner = nullptr;
+    Require(scePthreadCreate(&churner, nullptr, CreateAndJoin, &churn, "churner") == SCE_OK, "scePthreadCreate failed");
+    SuspendsRunningThread(Spin, "spin-churn", false);
+    churn.stop.store(true);
+    Require(scePthreadJoin(churner, nullptr) == SCE_OK, "joining the churner failed");
+    Require(churn.threads.load() > 0, "no thread started and exited during the suspends");
+}
+
 static void DefersCancelUntilResume() {
     Worker worker;
     Pthread thread = nullptr;
@@ -181,6 +211,7 @@ int main() {
     SuspendsRunningThread(Nap, "nap", false);
     SuspendsRunningThread(Rename, "rename", true);
     KeepsBlockedThreadAfterItsWaitEnds();
+    SuspendsWhileThreadsComeAndGo();
     DefersCancelUntilResume();
     std::puts("guest_pthread_suspend: ok");
     return 0;
