@@ -204,6 +204,27 @@ static void DefersCancelUntilResume() {
     Require(scePthreadJoin(thread, &result) == SCE_OK && result == CANCELED, "a cancel requested while suspended did not take effect after resume");
 }
 
+static void SuspendsAdoptedThread() {
+    Worker worker;
+    std::atomic<Pthread> adopted{nullptr};
+    std::thread host([&] {
+        adopted.store(scePthreadSelf());
+        while (!worker.stop.load()) worker.progress.fetch_add(1);
+    });
+    while (adopted.load() == nullptr) std::this_thread::yield();
+    WaitForProgress(worker, 0, "the adopted thread never started");
+    for (int round = 0; round < ROUNDS; ++round) {
+        Require(pthread_suspend_np_nid_postfix(adopted.load()) == 0, "pthread_suspend_np of an adopted thread failed");
+        const std::uint64_t stopped = worker.progress.load();
+        std::this_thread::sleep_for(STOPPED_WINDOW);
+        Require(worker.progress.load() == stopped, "a suspended adopted thread kept running");
+        Require(pthread_resume_np_nid_postfix(adopted.load()) == 0, "pthread_resume_np of an adopted thread failed");
+        WaitForProgress(worker, stopped, "a resumed adopted thread did not continue");
+    }
+    worker.stop.store(true);
+    host.join();
+}
+
 int main() {
     ReportsErrors();
     KeepsCreatedSuspendedThreadParked();
@@ -213,6 +234,7 @@ int main() {
     KeepsBlockedThreadAfterItsWaitEnds();
     SuspendsWhileThreadsComeAndGo();
     DefersCancelUntilResume();
+    SuspendsAdoptedThread();
     std::puts("guest_pthread_suspend: ok");
     return 0;
 }

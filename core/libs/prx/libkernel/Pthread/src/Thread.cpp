@@ -1241,6 +1241,7 @@ Pthread APS5_VABI scePthreadSelf() {
         adopted->references.store(1, std::memory_order_relaxed);
         TimedWait::BindThreadWaitState(&adopted->waitCount);
         SetStackFromHost(adopted.get());
+        adopted->started.store(true, std::memory_order_seq_cst);
         CurrentGuestState().current = adopted.release();
     }
 #else
@@ -1252,6 +1253,7 @@ Pthread APS5_VABI scePthreadSelf() {
         adoptedThread->threadId = std::this_thread::get_id();
         adoptedThread->hostThread = pthread_self();
         SetStackFromHost(adoptedThread.get());
+        adoptedThread->started.store(true, std::memory_order_seq_cst);
         CurrentGuestState().current = adoptedThread.get();
     }
 #endif
