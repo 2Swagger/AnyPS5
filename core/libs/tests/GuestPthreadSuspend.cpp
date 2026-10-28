@@ -225,6 +225,26 @@ static void SuspendsAdoptedThread() {
     host.join();
 }
 
+static void SuspendsAdoptedThreadThatExits() {
+    constexpr int EXIT_ROUNDS = 200;
+    constexpr auto HOST_CALL = std::chrono::milliseconds(2);
+    for (int round = 0; round < EXIT_ROUNDS; ++round) {
+        std::atomic<Pthread> adopted{nullptr};
+        std::thread host([&] {
+            adopted.store(scePthreadSelf());
+            std::this_thread::sleep_for(HOST_CALL);
+        });
+        while (adopted.load() == nullptr) std::this_thread::yield();
+        const int result = pthread_suspend_np_nid_postfix(adopted.load());
+        Require(result == 0 || result == GUEST_ESRCH, "pthread_suspend_np of an exiting adopted thread failed");
+        if (result == 0) {
+            const int resumed = pthread_resume_np_nid_postfix(adopted.load());
+            Require(resumed == 0 || resumed == GUEST_ESRCH, "pthread_resume_np of an exiting adopted thread failed");
+        }
+        host.join();
+    }
+}
+
 int main() {
     ReportsErrors();
     KeepsCreatedSuspendedThreadParked();
@@ -235,6 +255,7 @@ int main() {
     SuspendsWhileThreadsComeAndGo();
     DefersCancelUntilResume();
     SuspendsAdoptedThread();
+    SuspendsAdoptedThreadThatExits();
     std::puts("guest_pthread_suspend: ok");
     return 0;
 }

@@ -198,7 +198,7 @@ extern "C" int ResumeGuestThread_nid_no_patch(PthreadPrivate* thread);
 extern "C" void ResumeAllGuestThreads_nid_no_patch();
 extern "C" int SuspendGuestThread_nid_no_patch(PthreadPrivate* thread);
 extern "C" void ParkCurrentGuestThread_nid_no_patch();
-void RequestGuestThreadPark(PthreadPrivate* thread);
+bool RequestGuestThreadPark(PthreadPrivate* thread);
 void ReleaseGuestThreadPark(PthreadPrivate* thread);
 bool LiveGuestThreadExists(std::int64_t tid);
 bool GetLiveGuestThreadAffinity_nid_no_patch(std::int64_t tid, KernelCpumask& mask);

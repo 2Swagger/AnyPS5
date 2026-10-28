@@ -1182,7 +1182,7 @@ void InstallParkSignal() {
 }
 #endif
 
-void RequestGuestThreadPark(PthreadPrivate* thread) {
+bool RequestGuestThreadPark(PthreadPrivate* thread) {
 #ifdef _WIN32
     constexpr std::uint64_t RetryNanos = 1000000;
     constexpr unsigned YieldsPerSleep = 256;
@@ -1191,12 +1191,14 @@ void RequestGuestThreadPark(PthreadPrivate* thread) {
     unsigned attempts = 0;
     while (thread->parked.load(std::memory_order_acquire) == 0 && thread->suspended.load(std::memory_order_seq_cst)) {
         if (SuspendThread(native) == static_cast<DWORD>(-1)) {
-            if (Exited(native)) return;
-            throw std::runtime_error("pthread_suspend_np: cannot suspend the target thread");
+            constexpr DWORD ExitWaitMillis = 1000;
+            const DWORD error = GetLastError();
+            if (WaitForSingleObject(native, ExitWaitMillis) == WAIT_OBJECT_0) return false;
+            throw std::system_error(static_cast<int>(error), std::system_category(), "pthread_suspend_np: cannot suspend the target thread");
         }
         if (Exited(native)) {
             ResumeThread(native);
-            return;
+            return false;
         }
         DWORD64 image = 0;
         const auto running = FrozenCode(native, image);
@@ -1207,7 +1209,7 @@ void RequestGuestThreadPark(PthreadPrivate* thread) {
                 thread->parked.store(0, std::memory_order_release);
                 ResumeThread(native);
             }
-            return;
+            return true;
         }
         if (!queued && thread->waitCount.load(std::memory_order_seq_cst) > 0) queued = QueueUserAPC(ParkApc, native, 0) != 0;
         ResumeThread(native);
@@ -1223,18 +1225,23 @@ void RequestGuestThreadPark(PthreadPrivate* thread) {
     constexpr unsigned YieldsPerSleep = 256;
     InstallParkSignal();
     RefreshGuestRanges();
-    unsigned attempts = 0;
-    while (thread->parked.load(std::memory_order_acquire) == 0 && thread->suspended.load(std::memory_order_seq_cst)) {
-        const int result = pthread_kill(thread->hostThread, ParkSignal);
-        if (result == ESRCH) return;
-        if (result != 0) throw std::system_error(result, std::generic_category(), "pthread_suspend_np: cannot signal the target thread");
-        if (++attempts % YieldsPerSleep == 0) TimedWait::SleepNanos(RetryNanos);
+    for (unsigned attempts = 1;; ++attempts) {
+        {
+            const auto live = LockLiveGuestThread(thread);
+            if (!live.owns_lock()) return false;
+            if (thread->parked.load(std::memory_order_acquire) != 0 || !thread->suspended.load(std::memory_order_seq_cst)) return true;
+            const int result = pthread_kill(thread->hostThread, ParkSignal);
+            if (result == ESRCH) return false;
+            if (result != 0) throw std::system_error(result, std::generic_category(), "pthread_suspend_np: cannot signal the target thread");
+        }
+        if (attempts % YieldsPerSleep == 0) TimedWait::SleepNanos(RetryNanos);
         else sched_yield();
     }
 #else
     static_cast<void>(thread);
     NotImplemented_nid_no_patch("pthread_suspend_np of a running thread");
 #endif
+    return true;
 }
 
 void ReleaseGuestThreadPark(PthreadPrivate* thread) {

@@ -863,25 +863,34 @@ extern "C" int SuspendGuestThread_nid_no_patch(PthreadPrivate* thread) {
     constexpr int GuestEdeadlk = 11;
     constexpr std::uint64_t PollNanos = 1000000;
     if (thread == CurrentGuestState().current) return GuestEdeadlk;
+    bool referenced = false;
+    bool started = false;
     {
         const auto live = LockLiveGuestThread(thread);
         if (!live.owns_lock()) return GuestEsrch;
         thread->suspended.store(true, std::memory_order_seq_cst);
         if (thread->parked.load(std::memory_order_acquire) != 0) return 0;
-        if (!thread->_adopted) thread->references.fetch_add(1, std::memory_order_acq_rel);
+        referenced = !thread->_adopted;
+        if (referenced) thread->references.fetch_add(1, std::memory_order_acq_rel);
+        started = thread->started.load(std::memory_order_seq_cst);
     }
-    const std::unique_ptr<PthreadPrivate, decltype(&ReleaseThread)> reference(thread, &ReleaseThread);
-    if (thread->started.load(std::memory_order_seq_cst)) {
+    const std::unique_ptr<PthreadPrivate, decltype(&ReleaseThread)> reference(referenced ? thread : nullptr, &ReleaseThread);
+    if (started) {
         try {
-            RequestGuestThreadPark(thread);
+            if (!RequestGuestThreadPark(thread)) return 0;
         } catch (...) {
-            thread->suspended.store(false, std::memory_order_release);
+            const auto live = LockLiveGuestThread(thread);
+            if (live.owns_lock()) thread->suspended.store(false, std::memory_order_release);
             throw;
         }
     }
-    while (thread->parked.load(std::memory_order_acquire) == 0 && thread->suspended.load(std::memory_order_acquire) && GuestThreadIsLive(thread))
+    for (;;) {
+        {
+            const auto live = LockLiveGuestThread(thread);
+            if (!live.owns_lock() || thread->parked.load(std::memory_order_acquire) != 0 || !thread->suspended.load(std::memory_order_acquire)) return 0;
+        }
         TimedWait::SleepNanos(PollNanos);
-    return 0;
+    }
 }
 
 static std::mutex joinedLock;
