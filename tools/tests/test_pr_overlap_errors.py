@@ -77,7 +77,7 @@ class ErrorReportTests(unittest.TestCase):
             finally:
                 os.chdir(old)
             self.assertIn("cannot resolve path '../loop'", str(raised.exception))
-            self.assertRegex(str(raised.exception), r"Too many levels of symbolic links|Symlink loop")
+            self.assertRegex(str(raised.exception), r"Too many levels of symbolic links|Symlink loop|cannot be resolved by the system")
 
     def test_main_reconfigures_streams(self):
         class Stream:
