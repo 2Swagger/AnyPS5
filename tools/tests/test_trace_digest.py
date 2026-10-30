@@ -1085,7 +1085,7 @@ class IntervalSchemaTests(unittest.TestCase):
             for script in (trace_digest.__file__, Path(trace_digest.__file__).with_name("trace_intervals_csv.py")):
                 with self.subTest(frames=frames, script=script):
                     result = subprocess.run([sys.executable, str(script), str(self.path)],
-                                            capture_output=True, text=True, timeout=10)
+                                            capture_output=True, text=True, encoding="utf-8", timeout=10)
                     self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
                     self.assertIn("summary.jsonl:4:", result.stderr)
                     self.assertIn("p50 <= p90 <= p99 <= max", result.stderr)
@@ -1096,7 +1096,7 @@ class IntervalSchemaTests(unittest.TestCase):
         self.write(interval_line(0, 1, 20, 1, presents=-1))
         for options in ([], ["--json"]):
             result = subprocess.run([sys.executable, trace_digest.__file__, str(self.path), *options],
-                                    capture_output=True, text=True, timeout=10)
+                                    capture_output=True, text=True, encoding="utf-8", timeout=10)
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn("summary.jsonl:4:", result.stderr)
             self.assertNotIn("Traceback", result.stderr)
