@@ -399,6 +399,9 @@ if(BUILD_TESTING)
                 list(APPEND public_header_compiler_args --compiler-arg=-isysroot "--compiler-arg=${CMAKE_OSX_SYSROOT}")
             endif()
         endif()
+        add_test(NAME public_headers_data_aliases COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_public_headers_data_aliases.py)
+        set_tests_properties(public_headers_data_aliases PROPERTIES TIMEOUT 30)
         set(public_header_manifest "${CMAKE_CURRENT_BINARY_DIR}/public_headers.json")
         add_test(NAME public_headers COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_public_headers.py --audit-only --manifest "${public_header_manifest}")
