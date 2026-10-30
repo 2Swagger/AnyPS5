@@ -161,10 +161,53 @@ static void TestSamplerRestart() {
     usedBuffers = firstBuffer;
 }
 
+static void TestPitchShiftAndReverbSetup() {
+    const auto firstBuffer = usedBuffers;
+    const auto system = CreateSystem();
+    Require(sceNgs2SystemSetGrainSamples(system, RenderGrain) == SCE_NGS2_OK);
+    const auto master = Mastering(system, 2);
+    const std::uint32_t reverbOption[]{12, 1, 0};
+    Ngs2CustomSubmixerRackOption option{};
+    auto& custom = option.custom_rack_option;
+    auto& common = custom.rack_option;
+    common.size = sizeof(option);
+    common.max_grain_samples = 512;
+    common.max_voices = 1;
+    common.max_matrices = 1;
+    common.max_ports = 1;
+    custom.state_size = 32;
+    custom.num_buffers = 1;
+    custom.num_modules = 2;
+    option.max_channels = 2;
+    option.max_inputs = 1;
+    custom.module[0].module_id = SCE_NGS2_CUSTOM_MODULE_ID_PITCH_SHIFT;
+    custom.module[1].module_id = SCE_NGS2_CUSTOM_MODULE_ID_REVERB;
+    custom.module[1].option = reinterpret_cast<const Ngs2CustomModuleOption*>(reverbOption);
+    Ngs2ContextBufferInfo query{};
+    Require(sceNgs2RackQueryBufferSize(SCE_NGS2_RACK_ID_CUSTOM_SUBMIXER, &common, &query) == SCE_NGS2_OK);
+    const auto storage = Buffer(query);
+    std::uintptr_t rack = 0;
+    Require(sceNgs2RackCreate(system, SCE_NGS2_RACK_ID_CUSTOM_SUBMIXER, &common, &storage, &rack) == SCE_NGS2_OK);
+    const auto voice = Voice(rack);
+    for (int i = 0; i < 2; ++i) {
+        Control(voice, SCE_NGS2_CUSTOM_SUBMIXER_VOICE_PARAM_SETUP, Ngs2CustomSubmixerVoiceSetupParam{{}, 2, 2, 0, 0});
+        Patch(voice, master);
+        Event(voice, SCE_NGS2_VOICE_EVENT_PLAY);
+        std::array<float, RenderGrain * 2> samples{};
+        const Ngs2RenderBufferInfo output{samples.data(), samples.size() * sizeof(float), SCE_NGS2_WAVEFORM_TYPE_PCM_F32L, 2};
+        Require(sceNgs2SystemRender(system, &output, 1) == SCE_NGS2_OK);
+        Require(std::all_of(samples.begin(), samples.end(), [](float value) { return value == 0.0f; }));
+        Event(voice, SCE_NGS2_VOICE_EVENT_STOP_IMM);
+    }
+    Require(sceNgs2SystemDestroy(system, nullptr) == SCE_NGS2_OK);
+    usedBuffers = firstBuffer;
+}
+
 int main() {
     TestReverb(0);
     TestReverb(1);
     TestReverb(1, true);
     TestSamplerRestart();
+    TestPitchShiftAndReverbSetup();
     return 0;
 }
