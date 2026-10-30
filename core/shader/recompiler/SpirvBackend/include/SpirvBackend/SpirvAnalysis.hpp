@@ -33,6 +33,7 @@ struct SpirvRequirements {
     bool float64Interpolation = false;
     bool coherentBuffers = false;
     bool coherentBufferAlias = false;
+    bool readOnlyStorage = false;
     std::vector<std::uint32_t> capabilities;
     std::vector<std::string> extensions;
 };
