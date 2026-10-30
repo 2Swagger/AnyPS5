@@ -263,6 +263,35 @@ int main(int argc, char** argv) {
         const auto query = reinterpret_cast<Query>(dlsym(library, name));
 #endif
         Require(query != nullptr, "missing lookup export");
+        struct InterfaceIdCase {
+            const char* nid;
+            const char* rawName;
+            std::uint32_t value;
+        };
+        const InterfaceIdCase interfaceIds[] = {
+            {"k+4-1XDjo9w", "k+4-1XDjo9w_nid_no_patch_cut", 1},
+            {"HCxT7mELyYA", "HCxT7mELyYA_nid_no_patch_cut", 2},
+            {"qpgXDRp+K6M", "qpgXDRp+K6M_nid_no_patch_cut", 101},
+            {"ggCncb0pD6w", "ggCncb0pD6w_nid_no_patch_cut", 201},
+        };
+        const void* interfaceAddresses[4]{};
+        for (std::size_t i = 0; i < 4; ++i) {
+            const char* idName = std::strcmp(argv[2], "patched") == 0 ? interfaceIds[i].nid : interfaceIds[i].rawName;
+#ifdef _WIN32
+            const auto id = reinterpret_cast<const void*>(GetProcAddress(library, idName));
+#else
+            const auto id = dlsym(library, idName);
+#endif
+            Require(id != nullptr && reinterpret_cast<std::uintptr_t>(id) % alignof(std::uint32_t) == 0,
+                    "missing or unaligned interface identifier");
+            std::uint32_t value = 0;
+            std::memcpy(&value, id, sizeof(value));
+            Require(value == interfaceIds[i].value, "incorrect interface identifier");
+            for (std::size_t j = 0; j < i; ++j) {
+                Require(id != interfaceAddresses[j], "interface identifiers share storage");
+            }
+            interfaceAddresses[i] = id;
+        }
         const char* guidName = std::strcmp(argv[2], "patched") == 0 ? "SPdQvn+6-IA" : "SPdQvn+6-IA_nid_no_patch_cut";
 #ifdef _WIN32
         const auto guid = reinterpret_cast<const void*>(GetProcAddress(library, guidName));
