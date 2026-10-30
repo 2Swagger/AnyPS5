@@ -24,10 +24,6 @@ int APS5_VABI sceCameraSetForceDriverMode() {
 
 extern "C" {
 
-int APS5_VABI sceCameraIsVrCaptureEnable() {
-    NotImplemented_nid_no_patch(__func__);
-}
-
 int APS5_VABI libSceCameraUnknown_AnqFx_minus_nAxZM_nid_no_patch() {
     NotImplemented_nid_no_patch(__func__);
 }
