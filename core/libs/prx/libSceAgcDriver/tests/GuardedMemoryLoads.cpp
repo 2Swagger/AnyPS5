@@ -439,6 +439,25 @@ int main() {
         block.AppendInstruction(&load);
         require(!AnalyzeProgramRequirements(program).readOnlyStorage, "read-only LDS may allocate storage and must keep result guards");
     });
+    run("volatile robust buffer omits repeated zero selection", [] {
+        const LoadCase test{ResourceKind::Buffer, IrOpcode::LoadBufferU32, IrType::U32};
+        const auto selections = [](const std::vector<std::uint32_t>& module) {
+            unsigned count = 0;
+            for (std::size_t offset = 5; offset < module.size(); offset += module[offset] >> 16u) {
+                count += (module[offset] & 0xffffu) == spv::OpSelect;
+            }
+            return count;
+        };
+        for (const bool robust : {false, true}) {
+            for (const bool exact : {false, true}) {
+                auto plainTest = test;
+                plainTest.coherent = false;
+                const auto plain = emitLoad(plainTest, true, 8, 64, robust, exact);
+                const auto coherent = emitLoad(test, true, 8, 64, robust, exact);
+                require(selections(plain) == selections(coherent) + (robust && !exact ? 1u : 0u), "only volatile guarded robust loads may omit the repeated zero selection");
+            }
+        }
+    });
     run("private scratch selection", [] {
         const LoadCase test{ResourceKind::Scratch, IrOpcode::LoadAddressU32, IrType::U32};
         for (const bool robust : {false, true}) {
