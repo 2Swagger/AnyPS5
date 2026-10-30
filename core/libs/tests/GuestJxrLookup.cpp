@@ -263,6 +263,20 @@ int main(int argc, char** argv) {
         const auto query = reinterpret_cast<Query>(dlsym(library, name));
 #endif
         Require(query != nullptr, "missing lookup export");
+        const char* guidName = std::strcmp(argv[2], "patched") == 0 ? "SPdQvn+6-IA" : "SPdQvn+6-IA_nid_no_patch_cut";
+#ifdef _WIN32
+        const auto guid = reinterpret_cast<const void*>(GetProcAddress(library, guidName));
+#else
+        const auto guid = dlsym(library, guidName);
+#endif
+        Require(guid != nullptr && reinterpret_cast<std::uintptr_t>(guid) % 16 == 0, "missing or unaligned Gray8 GUID");
+        Reference gray;
+        Require(ReadReference(8, false, false, gray), "Gray8 reference missing");
+        Require(std::memcmp(guid, gray.guid.data(), gray.guid.size()) == 0, "exported Gray8 GUID differs from native reference");
+        JxrPixelInfo exportedGuid{};
+        exportedGuid.guid = guid;
+        Require(query(&exportedGuid, 0) == 0, "lookup with exported Gray8 GUID");
+        CheckValue(exportedGuid, gray);
         if (argc == 4) {
             Require(std::strcmp(argv[3], "forward") == 0 || std::strcmp(argv[3], "reverse") == 0, "padding direction");
             PaddingCases(query, std::strcmp(argv[3], "reverse") == 0);
