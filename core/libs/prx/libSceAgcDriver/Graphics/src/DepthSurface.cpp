@@ -590,6 +590,11 @@ public:
         stencilMemory = target.stencilAddress != 0 ? GuestMemory::CollectWrites(target.stencilAddress, static_cast<std::size_t>(stencilBytes())) : 0;
     }
 
+    bool OverwrittenOnGpu() const {
+        std::array<std::pair<std::uint64_t, std::uint64_t>, 2> ranges{{{target.address, target.address + depthBytes()}, {target.stencilAddress, target.stencilAddress + stencilBytes()}}};
+        return StorageTexture::AnyPendingOverlaps(std::span(ranges).first(target.stencilAddress != 0 ? 2u : 1u));
+    }
+
     bool OverwrittenInMemory() const {
         GuestMemory::CollectWrites(target.address, static_cast<std::size_t>(depthBytes()));
         if (GuestMemory::WrittenSince(target.address, static_cast<std::size_t>(depthBytes()), depthMemory)) return true;
@@ -2109,6 +2114,14 @@ void RequireNoResidentDepthRead_nid_no_patch(std::uint64_t address, std::size_t 
     anyDepthGuard().store(!depthGuards().empty(), std::memory_order_release);
 }
 
+void AppendHostWrittenDepthRanges(std::uint64_t address, std::size_t bytes, std::vector<std::pair<std::uint64_t, std::uint64_t>>& ranges) {
+    if (bytes == 0u || !anyDepthGuard().load(std::memory_order_acquire)) return;
+    std::shared_lock lock(depthGuardMutex());
+    for (const auto& range : depthGuards()) {
+        if (address < range.address + range.bytes && range.address < address + bytes && range.hostWritten->load(std::memory_order_acquire)) ranges.emplace_back(range.address, range.bytes);
+    }
+}
+
 void NoteDepthSurfaceWrite(const Context& context, const DepthTarget& target) {
     if (target.samples == 1u || !anyDepthGuard().load(std::memory_order_acquire)) return;
     std::lock_guard lock(surfacesMutex());
@@ -2185,6 +2198,10 @@ float HostDepthBiasConstant(const Context& context, VkFormat format, float const
 }
 
 VkImageView DepthSurfaceView(const Context& context, const DepthTarget& target, bool depthWritten) {
+    const auto planeBytes = [&](std::uint32_t bytesPerTexel) { return target.samples == 1u ? DepthSliceBytes(target.extent, bytesPerTexel) : MultisampledDepthBytes_nid_no_patch(target.extent, bytesPerTexel, target.samples); };
+    ClaimMultisampleTargetMemory(target.address, planeBytes(target.format == VK_FORMAT_D16_UNORM || target.format == VK_FORMAT_D16_UNORM_S8_UINT ? 2u : 4u));
+    if (target.stencilAddress != 0u) ClaimMultisampleTargetMemory(target.stencilAddress, planeBytes(1u));
+    if (target.htileAddress != 0u) ClaimMultisampleTargetMemory(target.htileAddress, HtileMetadataBytes(target.extent));
     const auto htileCleared = RoutesToNativeDepthOwner(target) ? VkImageAspectFlags{0} : storeBackClearedHtile(context, target);
     std::lock_guard gpu(GuestMemory::GpuMutex());
     settlePendingHtileClear(context, target.address);
@@ -2649,18 +2666,19 @@ std::shared_ptr<Texture> DepthSurfaceTexture(const Context& context, std::span<c
     const bool layered = cube || (resource.dimension == TextureDimension::k2DArray && resource.depthOrLastArray != 0);
     const bool sampled = stencil || (!layered && !integer);
     const auto copyFormat = integer ? VK_FORMAT_R16_UINT : d16 ? VK_FORMAT_R16_UNORM : VK_FORMAT_R32_SFLOAT;
-    const bool planes = (format == copyFormat || depthBits) && resource.width == base.extent.width && resource.height == base.extent.height && resource.baseLevel == 0 && resource.lastLevel == 0 && !(resource.baseArray != 0 && (cube || !layered || resource.baseArray > resource.depthOrLastArray)) && !(cube && resource.depthOrLastArray != 0 && resource.depthOrLastArray != 5) && (resource.dimension == TextureDimension::k2D || resource.dimension == TextureDimension::k2DArray || cube);
-    if (!(sampled ? found->SampledAccepts(words, resource) : planes) && found->OverwrittenInMemory()) {
+    const bool planes = (format == copyFormat || depthBits) && resource.width == base.extent.width && resource.height == base.extent.height && resource.baseLevel == 0 && resource.lastLevel == 0 && !(resource.baseArray != 0 && (cube || !layered || resource.baseArray > resource.depthOrLastArray)) && !(cube && resource.depthOrLastArray != 0 && (resource.depthOrLastArray + 1u) % 6u != 0u) && (resource.dimension == TextureDimension::k2D || resource.dimension == TextureDimension::k2DArray || cube);
+    if (!(sampled ? found->SampledAccepts(words, resource) : planes) && (found->OverwrittenInMemory() || found->OverwrittenOnGpu())) {
         retireStoringStale(*found);
         return nullptr;
     }
+    if (sampled && !stencil && mirrorable(base)) found->SyncFromMemory(mirrorResource(base));
     found->ApplyFastClear();
     if (sampled) return found->Sampled(words, resource, components, found == drawnDepth);
     Require(found->hostFormat == base.format, "sampling several slices or an integer view of a depth plane that the device stores in another depth format is not implemented");
-    const auto layers = cube ? 6u : layered ? resource.depthOrLastArray + 1u : 1u;
+    const auto layers = cube ? std::max(resource.depthOrLastArray + 1u, 6u) : layered ? resource.depthOrLastArray + 1u : 1u;
     if (!planes) {
-        char text[320];
-        std::snprintf(text, sizeof(text), "AGC graphics: sampling the depth planes of depth surface 0x%llx (%ux%u, vk format %d) as a %ux%u texture of guest format %u (vk %d), dimension %d, %u slices, levels %u-%u, base slice %u is not implemented", static_cast<unsigned long long>(base.address), base.extent.width, base.extent.height, static_cast<int>(base.format), resource.width, resource.height, resource.format, static_cast<int>(format), static_cast<int>(resource.dimension), layers, resource.baseLevel, resource.lastLevel, resource.baseArray);
+        char text[400];
+        std::snprintf(text, sizeof(text), "AGC graphics: sampling the depth planes of depth surface 0x%llx (%ux%u, vk format %d) as a %ux%u texture of guest format %u (vk %d), dimension %d, %u slices, levels %u-%u, base slice %u is not implemented (last array %u, depth bits %d, copy format %d)", static_cast<unsigned long long>(base.address), base.extent.width, base.extent.height, static_cast<int>(base.format), resource.width, resource.height, resource.format, static_cast<int>(format), static_cast<int>(resource.dimension), layers, resource.baseLevel, resource.lastLevel, resource.baseArray, resource.depthOrLastArray, depthBits ? 1 : 0, static_cast<int>(copyFormat));
         throw std::runtime_error(text);
     }
     std::vector<DepthPlaneSlice> slices;
