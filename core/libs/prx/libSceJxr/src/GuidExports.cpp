@@ -3,6 +3,18 @@
 
 extern "C" {
 
+extern const std::uint32_t JxrGuest_IID_PKImageScanEncode_nid_no_patch = 1;
+APS5_EXPORT("k+4-1XDjo9w", JxrGuest_IID_PKImageScanEncode_nid_no_patch);
+
+extern const std::uint32_t JxrGuest_IID_PKImageFrameEncode_nid_no_patch = 2;
+APS5_EXPORT("HCxT7mELyYA", JxrGuest_IID_PKImageFrameEncode_nid_no_patch);
+
+extern const std::uint32_t JxrGuest_IID_PKImageWmpEncode_nid_no_patch = 101;
+APS5_EXPORT("qpgXDRp+K6M", JxrGuest_IID_PKImageWmpEncode_nid_no_patch);
+
+extern const std::uint32_t JxrGuest_IID_PKImageWmpDecode_nid_no_patch = 201;
+APS5_EXPORT("ggCncb0pD6w", JxrGuest_IID_PKImageWmpDecode_nid_no_patch);
+
 alignas(16) extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormatDontCare_nid_no_patch = {0x6fddc324, 0x4e03, 0x4bfe, {0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x00}};
 APS5_EXPORT("ARu4CYmNAv4", JxrGuest_GUID_PKPixelFormatDontCare_nid_no_patch);
 

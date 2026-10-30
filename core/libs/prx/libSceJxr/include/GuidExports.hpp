@@ -13,6 +13,11 @@ static_assert(sizeof(JxrGuestGuid) == 16);
 
 extern "C" {
 
+extern const std::uint32_t JxrGuest_IID_PKImageScanEncode_nid_no_patch;
+extern const std::uint32_t JxrGuest_IID_PKImageFrameEncode_nid_no_patch;
+extern const std::uint32_t JxrGuest_IID_PKImageWmpEncode_nid_no_patch;
+extern const std::uint32_t JxrGuest_IID_PKImageWmpDecode_nid_no_patch;
+
 extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormatDontCare_nid_no_patch;
 extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormatBlackWhite_nid_no_patch;
 extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormat8bppGray_nid_no_patch;

@@ -2,7 +2,7 @@
 
 ### GUID exports
 
-- [GUID data exports](../../../core/libs/prx/libSceJxr/src/GuidExports.cpp) use 84 values from the pinned JXR header. Their NIDs and bytes match version-labelled images; the labels are not authenticated. Runtime behavior on a console and complete consumer coverage are unverified. Four additional 4-byte objects are read-only and match in both images but have unknown identities. One older 8-byte writable object has a relocation and no matching later-image data export; its identity, lifetime and initialization remain unknown. These five objects are not implemented.
+- [GUID data exports](../../../core/libs/prx/libSceJxr/src/GuidExports.cpp) use 84 values from the pinned JXR header. Their NIDs and bytes match version-labelled images; the labels are not authenticated. Runtime behavior on a console and complete consumer coverage are unverified. Four additional 4-byte interface identifiers have names and values matching the pinned upstream JXR implementation and both version-labelled images; their relative placement in a guest image and use by consumers are unverified. One older 8-byte writable object has a relocation and no matching later-image data export; its identity, lifetime and initialization remain unknown and it is not implemented.
 
 ### Functional
 
