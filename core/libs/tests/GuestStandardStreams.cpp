@@ -92,13 +92,13 @@ static bool CheckFileBytes(const std::string& filename, const std::string& expec
 static void CheckGetcharPutchar() {
     auto* const savedInput = __stdinp_nid_postfix;
     auto* const savedOutput = __stdoutp_nid_postfix;
-    FileStream input(std::tmpfile());
+    FileStream input(TemporaryFile::Open());
     Require(fputc_nid_postfix('T', &input) == 'T' && fputc_nid_postfix(0xff, &input) == 0xff);
     rewind_nid_postfix(&input);
     __stdinp_nid_postfix = &input;
     Require(getchar_nid_postfix() == 'T' && getchar_nid_postfix() == 0xff);
     Require(getchar_nid_postfix() == EOF && feof_nid_postfix(&input) != 0 && ferror_nid_postfix(&input) == 0);
-    FileStream output(std::tmpfile());
+    FileStream output(TemporaryFile::Open());
     __stdoutp_nid_postfix = &output;
     const int written[] = {putchar_nid_postfix('U'), putchar_nid_postfix(0x141), putchar_nid_postfix(-1)};
     __stdinp_nid_postfix = savedInput;
