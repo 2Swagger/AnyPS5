@@ -2,6 +2,8 @@ add_library(libwebrtc SHARED EXCLUDE_FROM_ALL ${CMAKE_CURRENT_SOURCE_DIR}/Export
 target_include_directories(libwebrtc PRIVATE ${LIBS_INCLUDE_DIR})
 configure_windows_unwind(libwebrtc)
 
+target_sources(libwebrtc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/ExpFilter.cpp)
+
 if(BUILD_TESTING)
     add_test_executable(guest_webrtc_fast_int_to_buffer_tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/FastIntToBuffer.cpp)
     target_include_directories(guest_webrtc_fast_int_to_buffer_tests PRIVATE ${LIBS_INCLUDE_DIR})
