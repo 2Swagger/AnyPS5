@@ -1,5 +1,15 @@
 # libSceIme technical debt
 
+### Additional callable exports
+
+- [Additional callable exports](../../../core/libs/prx/libSceIme/Export.cpp) - 2 entries observed in the 3.20 export inventory and present in the later 13.60-labelled inventory are import-resolution declarations only. The later inventory label does not authenticate a retail firmware version. Parameter lists, return types and behavior are unverified; parameterless `int` declarations are placeholders, not verified ABI contracts. Every entry throws through `NotImplemented_nid_no_patch`. Unidentified names use literal NID aliases. No runtime functionality is implemented.
+
+| Name | NID |
+| --- | --- |
+| `Unknown` | `NbbzN9GRg+c` |
+| `Unknown` | `aChMGUoc7QI` |
+
+
 ### Silent stubs
 
 - [sceImeOpen](../../../core/libs/prx/libSceIme/Export.cpp) (libSceIme) shows no panel: the text is typed on the host keyboard, which [ImeTextInput](../../../core/libs/prx/libSceVideoOut/src/ImeTextInput.cpp) forwards from the game window (SDL text input, Backspace, Delete, Left, Right, Home, End, Enter and Escape), and the controller cannot type. While a panel is open, key presses do not reach the keyboard-to-pad bindings of [PadInput](../../../core/libs/prx/libSceVideoOut/src/PadInput.cpp), as the console's panel takes the controller; key releases still do. Minecraft Preview (PPSA19639, #1277) opens it when entering a world. The external keyboard filter is accepted and never called because no keycode events are produced
@@ -26,12 +36,3 @@
 - [sceImeOpen text filter](../../../core/libs/prx/libSceIme/Export.cpp) (libSceIme) runs on the text edits of host input - typing, backspace, forward delete and a multiline Enter - following [KytyPS5](https://github.com/KytyPS5/KytyPS5/blob/1211958b4eb38256cc0c5c7ba92d668820c05389/src/libs/ime.cpp), not confirmed on a PS5. The host input thread only queues the edit under the IME mutex; `sceImeUpdate` applies it on the title's thread, where the filter also runs with the mutex released - like the event handler, so a filter that calls back into `sceIme*` cannot deadlock - and the structural edit and the filtered commit are serialized under the mutex, with a commit after the session closed or reopened dropped by a session id. The filter is guest code and `ImeTextFilter` and `ImeExtKeyboardFilter` are declared `APS5_VABI` like `EventHandler`. The filter is called with the edited text, a buffer of `maxTextLength` UTF-16 units and its length; a nonzero return, an output longer than the capacity, an unpaired surrogate or, without the multiline option, a line break keeps the edit unfiltered. An accepted output replaces the text, the caret stays where the edit put it and is clamped to the text and normalized past a surrogate pair, and one UpdateText is sent with the minimal edit delta of the whole old and new text, as KytyPS5 computes it; an output equal to the previous text sends no event. Caret moves, PressEnter without multiline, PressClose, `sceImeSetText` and `sceImeSetCaret` do not run the filter, as in KytyPS5; a `sceImeSetText` or `sceImeSetCaret` that lands while the filter runs bumps a revision beside the session id, and the filtered commit is dropped when either changed, as KytyPS5 drops the commit when its revision changed, so the title's own text or caret setting wins, the edit is discarded and sends no event. An external keyboard filter is accepted and stored on the session: it is called only for keyboard events that carry key data, which the host input path does not produce - it delivers text and actions, as KytyPS5's host API queues external inputs with a zeroed key and skips the filter for them - so it is never called
 
 - [sceImeVshNotifyCurrentTextInfo and sceImeVshNotifyCurrentTextInfoForReconvertText](../../../core/libs/prx/libSceIme/Export.cpp): assembly confirms seven and eight integer/pointer arguments, including the stack arguments, with no incoming SIMD parameter. Both take a context, UTF-16 string, signed 32-bit caret index and two pairs of 32-bit preedit/selection values. Pair endpoint-versus-length semantics and the reconversion option remain unresolved. Protected bodies are unchanged.
-
-### Additional callable exports
-
-- [Additional callable exports](../../../core/libs/prx/libSceIme/Export.cpp) - 2 entries observed in the 3.20 export inventory and present in the later 13.60-labelled inventory are import-resolution declarations only. The later inventory label does not authenticate a retail firmware version. Parameter lists, return types and behavior are unverified; parameterless `int` declarations are placeholders, not verified ABI contracts. Every entry throws through `NotImplemented_nid_no_patch`. Unidentified names use literal NID aliases. No runtime functionality is implemented.
-
-| Name | NID |
-| --- | --- |
-| `Unknown` | `NbbzN9GRg+c` |
-| `Unknown` | `aChMGUoc7QI` |
