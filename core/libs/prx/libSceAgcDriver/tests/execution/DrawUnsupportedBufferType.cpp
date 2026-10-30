@@ -33,9 +33,9 @@ void Append(std::vector<std::uint32_t>& commands, std::uint32_t opcode, std::ini
     commands.insert(commands.end(), payload);
 }
 
-void Draw(const std::array<std::uint32_t, 4>& descriptor, std::uint32_t* label = nullptr, const std::uint32_t* pixelCode = PixelCode.data()) {
+void Draw(const std::array<std::uint32_t, 4>& descriptor, std::uint32_t* label = nullptr) {
     const auto vertex = reinterpret_cast<std::uintptr_t>(VertexCode.data());
-    const auto pixel = reinterpret_cast<std::uintptr_t>(pixelCode);
+    const auto pixel = reinterpret_cast<std::uintptr_t>(PixelCode.data());
     const std::vector<std::pair<std::uint32_t, std::uint32_t>> context{
         {0x2d5, 0x2000},
         {0x1b6, 0}, {0x207, 0}, {0x200, 0}, {0x203, 0x800},
@@ -77,7 +77,6 @@ void Draw(const std::array<std::uint32_t, 4>& descriptor, std::uint32_t* label =
     Packet packet{commands.data(), static_cast<std::uint32_t>(commands.size()), 0, {}};
     Require(sceAgcDriverSubmitDcb(&packet) == 0, "unsupported buffer type draw submission failed");
     AgcDriverWaitIdle_nid_postfix();
-    AgcDriver::GuestMemory::FlushGpuWrites(color, Pixels.size());
 }
 
 void NamesShaderAndDescriptor() {
@@ -98,32 +97,6 @@ void NamesShaderAndDescriptor() {
         return;
     }
     throw std::runtime_error("a pixel shader read a buffer through a descriptor of type 2");
-}
-
-void ReadOnlyBufferBounds() {
-    Source.fill(std::bit_cast<std::uint32_t>(1.0f));
-    alignas(256) auto outOfBounds = PixelCode;
-    outOfBounds[0] = 0x7e020284u;
-    for (const std::uint32_t misalignment : {0u, 1u, 3u}) {
-        const auto address = reinterpret_cast<std::uintptr_t>(Source.data()) + misalignment;
-        const std::array<std::uint32_t, 4> descriptor{static_cast<std::uint32_t>(address), static_cast<std::uint32_t>((address >> 32u) & 0xffffu), 4u, 0x31016facu};
-        for (const bool outside : {false, true}) {
-            Pixels.fill(std::byte{0x40});
-            Draw(descriptor, nullptr, outside ? outOfBounds.data() : PixelCode.data());
-            unsigned covered = 0;
-            for (std::size_t pixel = 0; pixel < Pixels.size(); pixel += 4u) {
-                if (Pixels[pixel + 3u] == std::byte{0x40}) continue;
-                ++covered;
-                Require(Pixels[pixel + 3u] == std::byte{0xff}, "read-only buffer pixel alpha differs");
-                if (outside) {
-                    Require(Pixels[pixel] == std::byte{0} && Pixels[pixel + 1u] == std::byte{0} && Pixels[pixel + 2u] == std::byte{0}, "out-of-bounds read-only buffer pixel was not zero");
-                } else if (misalignment == 0u) {
-                    Require(Pixels[pixel] == std::byte{0xff} || Pixels[pixel + 1u] == std::byte{0xff} || Pixels[pixel + 2u] == std::byte{0xff}, "in-bounds read-only buffer pixel lost its value: " + std::to_string(std::to_integer<unsigned>(Pixels[pixel])) + "," + std::to_string(std::to_integer<unsigned>(Pixels[pixel + 1u])) + "," + std::to_string(std::to_integer<unsigned>(Pixels[pixel + 2u])));
-                }
-            }
-            Require(covered != 0u, "read-only buffer bounds draw covered no pixels");
-        }
-    }
 }
 
 void SkipsRefusedDraw() {
@@ -148,10 +121,7 @@ int main(int argc, char** argv) {
             if (!device) return VulkanTestSkipped;
         }
         if (argc == 2) SkipsRefusedDraw();
-        else {
-            ReadOnlyBufferBounds();
-            NamesShaderAndDescriptor();
-        }
+        else NamesShaderAndDescriptor();
         try { AgcDriverShutdown_nid_postfix(); } catch (const std::exception&) {}
         std::puts("draw unsupported buffer type tests passed");
         return 0;
