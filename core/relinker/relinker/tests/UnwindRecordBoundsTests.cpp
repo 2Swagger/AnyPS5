@@ -49,7 +49,7 @@ int main() {
         auto empty = Fixture();
         Io::WriteU64(empty, 112, 0);
         Require(Relinker::UnusedNidFilter::ReadExceptionFunctions(empty, {load, eh}, {}, {}).empty());
-        for (int kind = 0; kind < 12; ++kind) {
+        for (int kind = 0; kind < 11; ++kind) {
             auto bytes = Fixture(); auto segment = load;
             switch (kind) {
                 case 0: Io::WriteU32(bytes, 64, 0x1000); break;
@@ -78,14 +78,6 @@ int main() {
                     Io::WriteU64(bytes, 104, 0x800);
                     break;
                 }
-                case 11: {
-                    bytes[3] = 0x39;
-                    bytes[96] = 0;
-                    bytes[97] = 0x80;
-                    bytes[98] = 0;
-                    bytes[99] = 0x80;
-                    break;
-                }
             }
             bool rejected = false;
             std::vector<Domain::ProgramHeader> headers = {segment, eh};
@@ -101,6 +93,20 @@ int main() {
             catch (const std::exception&) { rejected = true; }
             Require(rejected);
         }
+        auto tableOverflow = Fixture();
+        tableOverflow[3] = 0x39;
+        tableOverflow[16] = 0x80;
+        tableOverflow[17] = 0x20;
+        tableOverflow[18] = 0x80;
+        tableOverflow[19] = 0x20;
+        Domain::ProgramHeader highLoad{}; highLoad.Type = 1; highLoad.MappedAddress = 0xFFFFFFFFFFFFF000ULL; highLoad.FileSize = 128;
+        Domain::ProgramHeader highEh = highLoad; highEh.Type = 0x6474E550; highEh.FileSize = 32;
+        bool overflowRejected = false;
+        try { Relinker::UnusedNidFilter::ReadExceptionFunctions(tableOverflow, {highLoad, highEh}, {}, {}); }
+        catch (const Domain::RelinkerException& error) {
+            overflowRejected = std::string(error.what()).find("unwind pointer address overflowed") != std::string::npos;
+        }
+        Require(overflowRejected);
         std::cout << "18 unwind record cases passed\n";
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }
