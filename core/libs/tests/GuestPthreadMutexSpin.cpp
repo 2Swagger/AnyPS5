@@ -27,27 +27,35 @@ static bool Spin(int spins, int yields, int freeOnTry, Counts& counts) {
 static void CheckSpinAcquire() {
     Counts counts;
     Require(!Spin(5, 3, 0, counts));
-    Require(counts.tries == 8 && counts.pauses == 5 && counts.yields == 3);
+    Require(counts.tries == 9 && counts.pauses == 5 && counts.yields == 3);
 
     counts = {};
     Require(Spin(5, 3, 1, counts));
     Require(counts.tries == 1 && counts.pauses == 0 && counts.yields == 0);
 
     counts = {};
-    Require(Spin(5, 3, 4, counts));
-    Require(counts.tries == 4 && counts.pauses == 3 && counts.yields == 0);
+    Require(Spin(0, 4, 1, counts));
+    Require(counts.tries == 1 && counts.pauses == 0 && counts.yields == 0);
 
     counts = {};
-    Require(Spin(5, 3, 7, counts));
-    Require(counts.tries == 7 && counts.pauses == 5 && counts.yields == 2);
+    Require(Spin(5, 3, 4, counts));
+    Require(counts.tries == 4 && counts.pauses == 2 && counts.yields == 0);
+
+    counts = {};
+    Require(Spin(5, 3, 8, counts));
+    Require(counts.tries == 8 && counts.pauses == 5 && counts.yields == 2);
 
     counts = {};
     Require(Spin(0, 2, 2, counts));
-    Require(counts.tries == 2 && counts.pauses == 0 && counts.yields == 2);
+    Require(counts.tries == 2 && counts.pauses == 0 && counts.yields == 1);
+
+    counts = {};
+    Require(!Spin(0, 2, 0, counts));
+    Require(counts.tries == 3 && counts.pauses == 0 && counts.yields == 2);
 
     counts = {};
     Require(!Spin(-3, -1, 0, counts));
-    Require(counts.tries == 0 && counts.pauses == 0 && counts.yields == 0);
+    Require(counts.tries == 1 && counts.pauses == 0 && counts.yields == 0);
 }
 
 struct Shared {

@@ -10,6 +10,8 @@ public:
 
     template<typename TTry, typename TPause, typename TYield>
     static bool SpinAcquire(int spins, int yields, TTry tryAcquire, TPause pause, TYield yield) {
+        if (tryAcquire())
+            return true;
         for (int spin = 0; spin < spins; ++spin) {
             if (tryAcquire())
                 return true;
