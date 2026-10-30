@@ -61,6 +61,19 @@ static void CheckRoundingAndScaling() {
     Require(__isinfl_nid_postfix(1.0L) == 0 && __isinfl_nid_postfix(static_cast<long double>(NAN)) == 0 && __isinfl_nid_postfix(0.0L) == 0);
 }
 
+static void CheckLogblLroundl() {
+    Require(logbl_nid_postfix(8.0L) == 3.0L && logbl_nid_postfix(0.75L) == -1.0L && logbl_nid_postfix(-0.75L) == -1.0L);
+    Require(logbl_nid_postfix(0x1p-16445L) == -16445.0L);
+    Require(logbl_nid_postfix(0.0L) == -INFINITY && logbl_nid_postfix(-0.0L) == -INFINITY);
+    Require(logbl_nid_postfix(INFINITY) == INFINITY && logbl_nid_postfix(-INFINITY) == INFINITY);
+    Require(std::isnan(logbl_nid_postfix(NAN)));
+    Require(lroundl_nid_postfix(2.5L) == 3 && lroundl_nid_postfix(-2.5L) == -3);
+    Require(lroundl_nid_postfix(0.5L) == 1 && lroundl_nid_postfix(-0.5L) == -1);
+    Require(lroundl_nid_postfix(0.49999999999999999L) == 0);
+    Require(lroundl_nid_postfix(9007199254740993.0L) == INT64_C(9007199254740993));
+    Require(lroundl_nid_postfix(0x1p62L) == (INT64_C(1) << 62));
+}
+
 static void CheckSignalingNanPassThrough() {
     const long double signaling = Extended(0x7fff, 0x8000000000001234ull);
     Require(SameBits(fdiml_nid_postfix(signaling, 1.0L), signaling));
@@ -156,6 +169,7 @@ static void CheckClassification() {
 
 int main() {
     CheckRoundingAndScaling();
+    CheckLogblLroundl();
     CheckSignalingNanPassThrough();
     CheckErrno();
     CheckConsoleQuirks();
