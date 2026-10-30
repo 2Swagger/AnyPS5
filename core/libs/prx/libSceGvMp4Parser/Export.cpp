@@ -1,3 +1,4 @@
+#include "prx/libSceGvMp4Parser/include/LegacyExports.hpp"
 #include "prx/libc/include/general/ExportMacros.hpp"
 #include "prx/libSceGvMp4Parser/include/InventoryExports.hpp"
 #include "prx/libSceGvMp4Parser/include/Api.hpp"
@@ -116,5 +117,24 @@ int APS5_VABI libSceGvMp4ParserUnknown_ybFfESYz8VA_nid_no_patch() {
     NotImplemented_nid_no_patch(__func__);
 }
 APS5_EXPORT("ybFfESYz8VA", libSceGvMp4ParserUnknown_ybFfESYz8VA_nid_no_patch);
+
+}
+
+extern "C" {
+
+int APS5_VABI gvMp4LegacyUnknown__plus_iXAnntDUq8_nid_no_patch() {
+    NotImplemented_nid_no_patch(__func__);
+}
+APS5_EXPORT("+iXAnntDUq8", gvMp4LegacyUnknown__plus_iXAnntDUq8_nid_no_patch);
+
+int APS5_VABI gvMp4LegacyUnknown_C23hWLV47ko_nid_no_patch() {
+    NotImplemented_nid_no_patch(__func__);
+}
+APS5_EXPORT("C23hWLV47ko", gvMp4LegacyUnknown_C23hWLV47ko_nid_no_patch);
+
+int APS5_VABI gvMp4LegacyUnknown_qli8xXuToKQ_nid_no_patch() {
+    NotImplemented_nid_no_patch(__func__);
+}
+APS5_EXPORT("qli8xXuToKQ", gvMp4LegacyUnknown_qli8xXuToKQ_nid_no_patch);
 
 }
