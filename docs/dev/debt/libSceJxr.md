@@ -10,4 +10,4 @@
 
 ### GUID exports
 
-- [GUID data exports](../../../core/libs/prx/libSceJxr/src/GuidExports.cpp) use 77 values from the pinned JXR header. Their NIDs and bytes match version-labelled images; the labels are not authenticated. Runtime behavior on a console and complete consumer coverage are unverified. Other data exports remain unimplemented.
+- [GUID data exports](../../../core/libs/prx/libSceJxr/src/GuidExports.cpp) use 84 values from the pinned JXR header. Their NIDs and bytes match version-labelled images; the labels are not authenticated. Runtime behavior on a console and complete consumer coverage are unverified. Other data exports remain unimplemented.

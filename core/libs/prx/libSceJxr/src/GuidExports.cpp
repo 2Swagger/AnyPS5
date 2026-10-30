@@ -234,4 +234,26 @@ APS5_EXPORT("Khk7j95AFxY", JxrGuest_GUID_PKPixelFormat48bppYCC422Alpha_nid_no_pa
 alignas(16) extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormat32bppYCC444Alpha_nid_no_patch = {0x6fddc324, 0x4e03, 0x4bfe, {0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x50}};
 APS5_EXPORT("JunvTxpYsIs", JxrGuest_GUID_PKPixelFormat32bppYCC444Alpha_nid_no_patch);
 
+alignas(16) extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormat40bppYCC444Alpha_nid_no_patch = {0x6fddc324, 0x4e03, 0x4bfe, {0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x51}};
+APS5_EXPORT("jZNu08W8XXY", JxrGuest_GUID_PKPixelFormat40bppYCC444Alpha_nid_no_patch);
+
+alignas(16) extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormat64bppYCC444Alpha_nid_no_patch = {0x6fddc324, 0x4e03, 0x4bfe, {0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x52}};
+APS5_EXPORT("1meVKABZwuw", JxrGuest_GUID_PKPixelFormat64bppYCC444Alpha_nid_no_patch);
+
+alignas(16) extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormat64bppYCC444AlphaFixedPoint_nid_no_patch = {0x6fddc324, 0x4e03, 0x4bfe, {0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x53}};
+APS5_EXPORT("AvvYpgObYk8", JxrGuest_GUID_PKPixelFormat64bppYCC444AlphaFixedPoint_nid_no_patch);
+
+alignas(16) extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormat32bppCMYKDIRECT_nid_no_patch = {0x6fddc324, 0x4e03, 0x4bfe, {0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x54}};
+APS5_EXPORT("rcl+HxedP2c", JxrGuest_GUID_PKPixelFormat32bppCMYKDIRECT_nid_no_patch);
+
+alignas(16) extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormat64bppCMYKDIRECT_nid_no_patch = {0x6fddc324, 0x4e03, 0x4bfe, {0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x55}};
+APS5_EXPORT("DHb-XsNuRuY", JxrGuest_GUID_PKPixelFormat64bppCMYKDIRECT_nid_no_patch);
+
+alignas(16) extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormat40bppCMYKDIRECTAlpha_nid_no_patch = {0x6fddc324, 0x4e03, 0x4bfe, {0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x56}};
+APS5_EXPORT("6DpPg7OgAhQ", JxrGuest_GUID_PKPixelFormat40bppCMYKDIRECTAlpha_nid_no_patch);
+
+alignas(16) extern const JxrGuestGuid JxrGuest_GUID_PKPixelFormat80bppCMYKDIRECTAlpha_nid_no_patch = {0x6fddc324, 0x4e03, 0x4bfe, {0xb1, 0x85, 0x3d, 0x77, 0x76, 0x8d, 0xc9, 0x43}};
+APS5_EXPORT("e6RoRSSlCwI", JxrGuest_GUID_PKPixelFormat80bppCMYKDIRECTAlpha_nid_no_patch);
+
+
 }
