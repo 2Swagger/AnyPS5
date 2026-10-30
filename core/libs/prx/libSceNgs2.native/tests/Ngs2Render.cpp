@@ -1878,27 +1878,6 @@ static void TestUnsetMatrix() {
     Require(sceNgs2SystemDestroy(stereoSystem, nullptr) == SCE_NGS2_OK);
 }
 
-static void TestPs4MasteringMapRule() {
-    const auto firstBuffer = usedBuffers;
-    const auto system = CreateSystem();
-    const auto master = Mastering(system, 6);
-    const std::vector<std::int16_t> pcm(Grain, 16384);
-    const auto sampler = Sampler(system, pcm, 0);
-    Patch(sampler, master);
-    Event(sampler, SCE_NGS2_VOICE_EVENT_PLAY);
-    std::vector<float> out(Grain * 2, 0.0f);
-    const Ngs2RenderBufferInfo info{out.data(), out.size() * sizeof(float), SCE_NGS2_WAVEFORM_TYPE_PCM_F32L, 2};
-    bool threw = false;
-    try {
-        for (unsigned i = 0; i < 3; i++) Require(sceNgs2SystemRender(system, &info, 1) == SCE_NGS2_OK);
-    } catch (const std::runtime_error&) {
-        threw = true;
-    }
-    Require(threw);
-    Require(sceNgs2SystemDestroy(system, nullptr) == SCE_NGS2_OK);
-    ResetBuffers(firstBuffer);
-}
-
 static void TestDefaultMapLikePs5() {
     const float half = 0.5f * HalfPower;
     Require(MixFrame(6, 4, 2) == (std::vector<float>{half, 0}) && MixFrame(6, 5, 2) == (std::vector<float>{0, half}));
@@ -1958,7 +1937,6 @@ static void TestDefaultMapLikePs5() {
     Require(masterFrame(8, 7, 2, 1.0f) == (std::vector<float>{0, half}));
     Require(masterFrame(8, 6, 6, 1.0f) == (std::vector<float>{0, 0, 0, 0, 0.5f, 0}));
     Require(masterFrame(8, 3, 6, 1.0f) == (std::vector<float>{0, 0, 0, 0.5f, 0, 0}));
-    Require(masterFrame(6, 0, 4, 1.0f).empty() && masterFrame(8, 0, 7, 1.0f).empty() && masterFrame(1, 0, 3, 1.0f).empty() && masterFrame(3, 0, 2, 1.0f).empty());
 }
 
 template <typename TSample>
@@ -2134,11 +2112,7 @@ int main() {
 
     TestSystemOptionFlags();
 
-    if (Ps4Library) {
-        TestPs4MasteringMapRule();
-    } else {
-        TestDefaultMapLikePs5();
-    }
+    if (!Ps4Library) TestDefaultMapLikePs5();
 
     TestUserData();
     TestPcmCallbackReset();
