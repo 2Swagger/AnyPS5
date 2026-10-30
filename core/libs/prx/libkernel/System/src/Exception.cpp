@@ -1133,8 +1133,10 @@ void RefreshGuestRanges() {
     RangeSearch search;
     dl_iterate_phdr(CollectGuestRanges, &search);
     auto& ranges = Ranges();
+    if (search.found.size() > GuestRangeCapacity)
+        throw std::length_error("pthread_suspend_np: more than 256 executable guest segments are loaded");
     std::lock_guard lock(ranges.refresh);
-    const std::size_t count = std::min(search.found.size(), GuestRangeCapacity);
+    const std::size_t count = search.found.size();
     ranges.version.fetch_add(1, std::memory_order_acq_rel);
     for (std::size_t index = 0; index < count; ++index) {
         ranges.begins[index].store(search.found[index].first, std::memory_order_relaxed);
