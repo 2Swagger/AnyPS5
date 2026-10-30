@@ -408,7 +408,7 @@ int main() {
                 require(writing == readOnly + (robust && !exact ? 1u : 0u), "only read-only robust pixel loads may omit the result selection");
                 test.written = false;
                 test.coherent = true;
-                require(selections(emitLoad(test, true, 8, 64, robust, exact)) == writing, "coherent loads must retain their existing result guard");
+                require(selections(emitLoad(test, true, 8, 64, robust, exact)) == readOnly, "coherent loads must retain the upstream volatile result folding");
                 test.coherent = false;
             }
         }
