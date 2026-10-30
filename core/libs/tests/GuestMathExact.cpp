@@ -138,6 +138,22 @@ static void CheckRoundingModes() {
     Require(std::fesetround(saved) == 0);
 }
 
+static void CheckRintTiesToEven() {
+    const int saved = std::fegetround();
+    Require(std::fesetround(FE_TONEAREST) == 0);
+    Require(rint_nid_postfix(0.5) == 0.0 && !std::signbit(rint_nid_postfix(0.5)));
+    Require(rint_nid_postfix(-0.5) == 0.0 && std::signbit(rint_nid_postfix(-0.5)));
+    Require(rint_nid_postfix(2.5) == 2.0 && rint_nid_postfix(3.5) == 4.0 && rint_nid_postfix(-2.5) == -2.0);
+    Require(!std::signbit(rint_nid_postfix(0.0)) && std::signbit(rint_nid_postfix(-0.0)));
+    Require(rint_nid_postfix(INFINITY) == INFINITY && rint_nid_postfix(-INFINITY) == -INFINITY);
+    Require(std::isnan(rint_nid_postfix(NAN)));
+    Require(rint_nid_postfix(4503599627370497.0) == 4503599627370497.0);
+    Require(rintf_nid_postfix(2.5f) == 2.0f && rintf_nid_postfix(0.5f) == 0.0f && !std::signbit(rintf_nid_postfix(0.5f)));
+    Require(std::signbit(rintf_nid_postfix(-0.5f)) && rintf_nid_postfix(8388609.0f) == 8388609.0f);
+    Require(rintl_nid_postfix(2.5L) == 2.0L && rintl_nid_postfix(3.5L) == 4.0L && std::signbit(rintl_nid_postfix(-0.5L)));
+    Require(std::fesetround(saved) == 0);
+}
+
 static void CheckClassification() {
     const long double pseudoDenormal = Extended(0x0000, 0x8000000000000000ull);
     Require(_LDtest_nid_postfix(&pseudoDenormal) == -1 && __fpclassifyl_nid_postfix(pseudoDenormal) == -2);
@@ -160,6 +176,7 @@ int main() {
     CheckErrno();
     CheckConsoleQuirks();
     CheckRoundingModes();
+    CheckRintTiesToEven();
     CheckClassification();
     return 0;
 }
