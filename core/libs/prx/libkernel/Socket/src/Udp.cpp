@@ -1866,7 +1866,11 @@ int APS5_VABI sendfile_nid_postfix(int file, int descriptor, std::int64_t offset
         if (localHeaders.headers != nullptr) {
             if (localHeaders.headerCount < 0 || localHeaders.headerCount > 1024) return Fail(22);
             if (localHeaders.headerCount > 0) {
-                headerIovecs.resize(localHeaders.headerCount);
+                try {
+                    headerIovecs.resize(localHeaders.headerCount);
+                } catch (const std::bad_alloc&) {
+                    return Fail(12);
+                }
                 if (!GuestCopyIn_nid_no_patch(headerIovecs.data(), localHeaders.headers, headerIovecs.size() * sizeof(KernelIovec)))
                     return Fail(14);
                 if (!SendfileIovecs(headerIovecs.data(), localHeaders.headerCount)) return Fail(22);
@@ -1875,7 +1879,11 @@ int APS5_VABI sendfile_nid_postfix(int file, int descriptor, std::int64_t offset
         if (localHeaders.trailers != nullptr) {
             if (localHeaders.trailerCount < 0 || localHeaders.trailerCount > 1024) return Fail(22);
             if (localHeaders.trailerCount > 0) {
-                trailerIovecs.resize(localHeaders.trailerCount);
+                try {
+                    trailerIovecs.resize(localHeaders.trailerCount);
+                } catch (const std::bad_alloc&) {
+                    return Fail(12);
+                }
                 if (!GuestCopyIn_nid_no_patch(trailerIovecs.data(), localHeaders.trailers, trailerIovecs.size() * sizeof(KernelIovec)))
                     return Fail(14);
                 if (!SendfileIovecs(trailerIovecs.data(), localHeaders.trailerCount)) return Fail(22);
@@ -1884,7 +1892,7 @@ int APS5_VABI sendfile_nid_postfix(int file, int descriptor, std::int64_t offset
     }
     std::int64_t sent = 0;
     const auto finish = [&](int error) {
-        if (sbytes != nullptr && !GuestCopyOut_nid_no_patch(sbytes, &sent, sizeof(sent))) return Fail(14);
+        if (sbytes != nullptr) GuestCopyOut_nid_no_patch(sbytes, &sent, sizeof(sent));
         return error ? Fail(error) : 0;
     };
     if (DescriptorIsOpen_nid_no_patch(file) && !File::IsVnode(file) && !File::IsSharedMemoryDescriptor_nid_no_patch(file)) return finish(22);
