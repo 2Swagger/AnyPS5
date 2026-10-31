@@ -85,6 +85,13 @@ static void CheckSignalingNanPassThrough() {
     Require(SameBits(nanl_nid_postfix("123"), Extended(0x7fff, 0xc000000000000000ull)));
 }
 
+static void CheckFiniteClassification() {
+    for (const float value : {1.0f, 0.0f, -0.0f, 0x1p-149f, 0x1.fffffep127f}) Require(finitef_nid_postfix(value) != 0);
+    for (const float value : {static_cast<float>(INFINITY), -static_cast<float>(INFINITY), static_cast<float>(NAN)}) Require(finitef_nid_postfix(value) == 0);
+    for (const double value : {1.0, 0.0, -0.0, 0x1p-1074, 0x1.fffffffffffffp1023}) Require(__isfinite_nid_postfix(value) != 0);
+    for (const double value : {static_cast<double>(INFINITY), -static_cast<double>(INFINITY), static_cast<double>(NAN)}) Require(__isfinite_nid_postfix(value) == 0);
+}
+
 static void CheckErrno() {
     errno = 0;
     Require(std::isnan(fmodl_nid_postfix(NAN, 1.0L)) && errno == EDOM);
@@ -188,6 +195,7 @@ int main() {
     CheckLogblLroundl();
     CheckSignalingNanPassThrough();
     CheckErrno();
+    CheckFiniteClassification();
     CheckConsoleQuirks();
     CheckRoundingModes();
     CheckRintTiesToEven();
