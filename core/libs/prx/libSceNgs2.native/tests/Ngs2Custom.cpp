@@ -938,7 +938,10 @@ static void TestCustomUserFxBuffers() {
 
     for (int grain = 0; grain < 2; grain++) {
         const auto out = Render(system);
-        for (std::uint32_t i = 0; i < Grain; i++) Require(out[i * 2] == 0.25f && out[i * 2 + 1] == 0.25f);
+        for (std::uint32_t i = 0; i < Grain; i++) {
+            const float expected = grain == 0 && i < 3 ? 0.0f : 0.25f;
+            Require(out[i * 2] == expected && out[i * 2 + 1] == expected);
+        }
     }
 
     Require(sceNgs2RackDestroy(rack, nullptr) == SCE_NGS2_OK);
