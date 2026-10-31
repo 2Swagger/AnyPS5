@@ -295,7 +295,7 @@ static void CheckFgetsSize() {
 }
 
 static void CheckFgetsSizeOne() {
-    FileStream stream(std::tmpfile());
+    FileStream stream(TemporaryFile::Open());
     Require(fwrite_nid_postfix("line\n", 1, 5, &stream) == 5);
     rewind_nid_postfix(&stream);
     char buffer[8];
